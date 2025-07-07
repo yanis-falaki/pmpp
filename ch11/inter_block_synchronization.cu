@@ -27,22 +27,19 @@ __global__ void kogge_stone_scan_multi_block_kernel(uint32_t *blockCount, uint32
         XY_0[threadIdx.x] = 0;
     }
 
-    uint32_t k = 0;
+
+    float* out = XY_0;
+    float* in = XY_1;
     for (uint32_t stride = 1; stride < BLOCK_SIZE; stride *= 2){
-        ++k;
         __syncthreads();
-        if (threadIdx.x >= stride) {
-            if (k % 2 == 1)
-                XY_1[threadIdx.x] = XY_0[threadIdx.x] + XY_0[threadIdx.x - stride];
-            else
-                XY_0[threadIdx.x] = XY_1[threadIdx.x] + XY_1[threadIdx.x - stride];
-        }
-        else {
-            if (k % 2 == 1)
-            XY_1[threadIdx.x] = XY_0[threadIdx.x];
-            else
-                XY_0[threadIdx.x] = XY_1[threadIdx.x];
-        }
+        if (threadIdx.x >= stride)
+            in[threadIdx.x] = out[threadIdx.x] + out[threadIdx.x - stride];
+        else
+            in[threadIdx.x] = out[threadIdx.x];
+
+        float* tmp = in;
+        in = out;
+        out = tmp;
     }
 
     // Wait for global flag to be set
@@ -57,20 +54,12 @@ __global__ void kogge_stone_scan_multi_block_kernel(uint32_t *blockCount, uint32
 
     // Add value from block i - 1 to all elements and assign to output (will be zero if at blockIdx 0)
     if (i < size) {
-        if (k % 2 == 1) 
-            Y[i] = XY_1[threadIdx.x] + precedingBlockSum;
-        else
-            Y[i] = XY_0[threadIdx.x] + precedingBlockSum;
+        Y[i] = out[threadIdx.x] + precedingBlockSum;
     }
 
     // Assign last thread's value to blockSums and turn blockFlags true
     if (threadIdx.x == BLOCK_SIZE - 1){
-        if (k % 2 == 1) {
-            blockSums[blockIndex] = XY_1[threadIdx.x] + precedingBlockSum;
-        }
-        else {
-            blockSums[blockIndex] = XY_0[threadIdx.x] + precedingBlockSum;
-        }
+        blockSums[blockIndex] = out[threadIdx.x] + precedingBlockSum;
         __threadfence();
         blockFlags[blockIndex] = true;
     }
