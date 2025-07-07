@@ -148,7 +148,7 @@ int main(void) {
         if (!isSameFloat(B_h[i], B_ref[i])) {
             std::cout << "CPU and GPU results are not equal!" << B_h[i] << std::endl;
             std::cout << "B_ref[" << i << "]: " << B_ref[i] << "\tB_h[" << i << "]: " << B_h[i] << std::endl;
-            return 0;
+            return 1;
         }
     }
 
